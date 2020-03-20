@@ -20,6 +20,7 @@ Vagrant.configure("2") do |config|
         vbox.cpus = 4
       end
 
+      # Common provision
       node.vm.provision "shell", inline: <<-SHELL
 
         # Set SELinux to permissive
@@ -44,20 +45,6 @@ Vagrant.configure("2") do |config|
         # Convenience
         yum install -y vim
 
-        # Install jq
-        yum install -y epel-release
-        yum install -y jq
-
-        # Install apache
-        yum install -y httpd
-        systemctl start httpd
-        systemctl -q enable httpd
-
-        # Install rsyslog
-        yum install -y rsyslog
-        systemctl start rsyslog
-        systemctl -q enable rsyslog
-
         # Install td-agent
         cp /vagrant/td-agent.repo /etc/yum.repos.d/
         yum check-update
@@ -70,77 +57,100 @@ Vagrant.configure("2") do |config|
         systemctl restart td-agent
         systemctl -q enable td-agent
 
-        # Add rsyslog forwarding option if it does not exist
-        if ! grep -q "127.0.0.1:5140" /etc/rsyslog.conf; then
-          echo "*.* @127.0.0.1:5140" >> /etc/rsyslog.conf
-          systemctl restart rsyslog
-        fi
-
       SHELL
 
-      # Install newest docker-compose
+      # Commmon provision: install docker-compose
       node.vm.provision "shell", path: "install-compose.sh"
 
-      # Start compose services and add default input
-      node.vm.provision "shell", inline: <<-SHELL
+      # Graylog specific provision
+      if server == "graylog"
+        node.vm.provision "shell", inline: <<-SHELL
 
-        # Bring up containers
-        cd /vagrant
-        /usr/local/bin/docker-compose up -d 2> /dev/null
-        cd /vagrant/wordpress
-        /usr/local/bin/docker-compose up -d 2> /dev/null
-        cd /vagrant
+          # Install jq
+          yum install -y epel-release
+          yum install -y jq
 
-        # Wait 120 seconds for Graylog to come online
-        SECONDS=0
-        while true
-        do
-          GRAYLOG_STATE=$(
-            docker inspect vagrant_graylog_1 \
-              | jq --raw-output '.[] | .State.Health.Status')
+          # Start Graylog
+          cd /vagrant
+          /usr/local/bin/docker-compose up -d 2> /dev/null
 
-          if [[ "$GRAYLOG_STATE" == "healthy" ]]; then
-            echo "Graylog is available."
-            sleep 5
-            break
-          elif [[ "$GRAYLOG_STATE" != "starting" ]]; then
-            echo "Something is wrong with Graylog. Aborting."
-            exit 1
-          elif [[ $SECONDS -le 120 ]]; then
-            echo "Waiting for Graylog ($SECONDS/120 seconds)"
-            sleep 10
-          else
-            echo "Waiting on Graylog timed out. Aborting."
-            exit 1
+          # Wait 120 seconds for Graylog to come online
+           SECONDS=0
+           while true
+           do
+             GRAYLOG_STATE=$(
+               docker inspect vagrant_graylog_1 \
+                 | jq --raw-output '.[] | .State.Health.Status')
+
+             if [[ "$GRAYLOG_STATE" == "healthy" ]]; then
+               echo "Graylog is available."
+               sleep 5
+               break
+             elif [[ "$GRAYLOG_STATE" != "starting" ]]; then
+               echo "Something is wrong with Graylog. Aborting."
+               exit 1
+             elif [[ $SECONDS -le 120 ]]; then
+               echo "Waiting for Graylog ($SECONDS/120 seconds)"
+               sleep 10
+             else
+               echo "Waiting on Graylog timed out. Aborting."
+               exit 1
+             fi
+           done
+
+           # Check for existing GELF TCP Input
+           INPUTSTATE=$(
+             curl -s -X GET \
+                 -H "Content-Type: application/json" \
+                 -H "X-Requested-By: cli" \
+                 -u admin:admin \
+                 "http://graylog.172.28.128.30.xip.io:8080/api/system/inputstates")
+
+           INPUT_TYPES=$(echo $INPUTSTATE | jq --raw-output '.states | .[] | .message_input.type')
+
+           for TYPE in $INPUT_TYPES; do
+             if [[ "$TYPE" == "org.graylog2.inputs.gelf.tcp.GELFTCPInput" ]]; then
+               echo "Found GELF TCP input in Graylog, aborting input installation."
+               exit
+             fi
+           done
+
+           # Install GELF TCP Input
+           curl -i -s -X POST \
+               -H "Content-Type: application/json" \
+               -H "X-Requested-By: cli" \
+               -u admin:admin \
+               "http://graylog.172.28.128.30.xip.io:8080/api/system/inputs" \
+               -d @GELFTCPInput.json
+
+        SHELL
+
+      elsif server == "systems"
+        node.vm.provision "shell", inline: <<-SHELL
+
+          # Install apache
+          yum install -y httpd
+          systemctl start httpd
+          systemctl -q enable httpd
+
+          # Install rsyslog
+          yum install -y rsyslog
+          systemctl start rsyslog
+          systemctl -q enable rsyslog
+
+          # Add rsyslog forwarding option if it does not exist
+          if ! grep -q "127.0.0.1:5140" /etc/rsyslog.conf; then
+            echo "*.* @127.0.0.1:5140" >> /etc/rsyslog.conf
+            systemctl restart rsyslog
           fi
-        done
 
-        # Check for existing GELF TCP Input
-        INPUTSTATE=$(
-          curl -s -X GET \
-              -H "Content-Type: application/json" \
-              -H "X-Requested-By: cli" \
-              -u admin:admin \
-              "http://graylog.172.28.128.30.xip.io:8080/api/system/inputstates")
+          # Bring up WordPress test containers
+          cd /vagrant/wordpress
+          /usr/local/bin/docker-compose up -d 2> /dev/null
 
-        INPUT_TYPES=$(echo $INPUTSTATE | jq --raw-output '.states | .[] | .message_input.type')
+        SHELL
 
-        for TYPE in $INPUT_TYPES; do
-          if [[ "$TYPE" == "org.graylog2.inputs.gelf.tcp.GELFTCPInput" ]]; then
-            echo "Found GELF TCP input in Graylog, aborting input installation."
-            exit
-          fi
-        done
-
-        # Install GELF TCP Input
-        curl -i -s -X POST \
-            -H "Content-Type: application/json" \
-            -H "X-Requested-By: cli" \
-            -u admin:admin \
-            "http://graylog.172.28.128.30.xip.io:8080/api/system/inputs" \
-            -d @GELFTCPInput.json
-      SHELL
-
+      end
     end
   end
 end
