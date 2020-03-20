@@ -11,8 +11,6 @@ services:
       MYSQL_USER: wordpress
       MYSQL_PASSWORD: Password1
       MYSQL_RANDOM_ROOT_PASSWORD: '1'
-    networks:
-      - default
 
   wordpress:
     depends_on:
@@ -24,9 +22,6 @@ services:
       WORDPRESS_DB_USER: wordpress
       WORDPRESS_DB_PASSWORD: Password1
       WORDPRESS_DB_NAME: wordpress
-    networks:
-      - default
-      - traefik-net
     labels:
       - "traefik.http.routers.wordpress.rule=Host(`wordpress.172.28.128.30.xip.io`)"
       - "traefik.docker.network=vagrant_traefik-net"
@@ -37,11 +32,6 @@ services:
        fluentd-address: "tcp://127.0.0.1:24224"
        fluentd-async-connect: "true"
        tag: devel.kris
-
-networks:
-  traefik-net:
-#    external:
-#      name: vagrant_traefik-net
 
 volumes:
   db_data: {}
