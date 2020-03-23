@@ -49,12 +49,8 @@ Vagrant.configure("2") do |config|
         cp /vagrant/td-agent.repo /etc/yum.repos.d/
         yum check-update
         yum install -y td-agent
+        td-agent-gem install fluent-plugin-secure-forward
         td-agent-gem install fluent-plugin-gelf-hs gelf
-        cp /vagrant/td-agent.conf /etc/td-agent/td-agent.conf
-        mkdir -p /var/log/containers
-        chown -R td-agent:td-agent /var/log/containers
-        chmod -R 755 /var/log
-        systemctl restart td-agent
         systemctl -q enable td-agent
 
       SHELL
@@ -65,6 +61,9 @@ Vagrant.configure("2") do |config|
       # Graylog specific provision
       if server == "graylog"
         node.vm.provision "shell", inline: <<-SHELL
+
+          cp /vagrant/td-agent-server.conf /etc/td-agent/td-agent.conf
+          systemctl restart td-agent
 
           # Install jq
           yum install -y epel-release
@@ -143,6 +142,13 @@ Vagrant.configure("2") do |config|
             echo "*.* @127.0.0.1:5140" >> /etc/rsyslog.conf
             systemctl restart rsyslog
           fi
+
+          # Configure td-agent
+          cp /vagrant/td-agent.conf /etc/td-agent/td-agent.conf
+          mkdir -p /var/log/containers
+          chown -R td-agent:td-agent /var/log/containers
+          chmod -R 755 /var/log
+          systemctl restart td-agent
 
           # Bring up WordPress test containers
           cd /vagrant/wordpress
