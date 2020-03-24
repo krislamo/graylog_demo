@@ -45,6 +45,17 @@ Vagrant.configure("2") do |config|
         # Convenience
         yum install -y vim
 
+        # Install rsyslog
+        yum install -y rsyslog
+        systemctl start rsyslog
+        systemctl -q enable rsyslog
+
+        # Add rsyslog forwarding option if it does not exist
+        if ! grep -q "127.0.0.1:5140" /etc/rsyslog.conf; then
+          echo "*.* @127.0.0.1:5140" >> /etc/rsyslog.conf
+          systemctl restart rsyslog
+        fi
+
         # Install td-agent
         cp /vagrant/td-agent.repo /etc/yum.repos.d/
         yum check-update
@@ -131,17 +142,6 @@ Vagrant.configure("2") do |config|
           yum install -y httpd
           systemctl start httpd
           systemctl -q enable httpd
-
-          # Install rsyslog
-          yum install -y rsyslog
-          systemctl start rsyslog
-          systemctl -q enable rsyslog
-
-          # Add rsyslog forwarding option if it does not exist
-          if ! grep -q "127.0.0.1:5140" /etc/rsyslog.conf; then
-            echo "*.* @127.0.0.1:5140" >> /etc/rsyslog.conf
-            systemctl restart rsyslog
-          fi
 
           # Configure td-agent
           cp /vagrant/td-agent.conf /etc/td-agent/td-agent.conf

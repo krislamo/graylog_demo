@@ -24,12 +24,24 @@ services:
       - "traefik.enable=true"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    logging:
+      driver: "fluentd"
+      options:
+       fluentd-address: "tcp://127.0.0.1:24224"
+       fluentd-async-connect: "true"
+       tag: traefik
 
   mongo:
     image: mongo:4.2.2
     restart: always
     networks:
       - graylog
+    logging:
+      driver: "fluentd"
+      options:
+       fluentd-address: "tcp://127.0.0.1:24224"
+       fluentd-async-connect: "true"
+       tag: graylog.db
 
   elasticsearch:
     image: elasticsearch:6.8.6
@@ -45,6 +57,12 @@ services:
         hard: -1
     networks:
       - graylog
+    logging:
+      driver: "fluentd"
+      options:
+       fluentd-address: "tcp://127.0.0.1:24224"
+       fluentd-async-connect: "true"
+       tag: graylog.elasticsearch
 
   graylog:
     image: graylog/graylog:3.2.2
@@ -76,6 +94,12 @@ services:
       - 12201:12201
       # GELF UDP
       - 12201:12201/udp
+    logging:
+      driver: "fluentd"
+      options:
+       fluentd-address: "tcp://127.0.0.1:24224"
+       fluentd-async-connect: "true"
+       tag: graylog
 
 networks:
   traefik-net:

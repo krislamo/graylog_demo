@@ -11,6 +11,12 @@ services:
       MYSQL_USER: wordpress
       MYSQL_PASSWORD: Password1
       MYSQL_RANDOM_ROOT_PASSWORD: '1'
+    logging:
+      driver: "fluentd"
+      options:
+       fluentd-address: "tcp://127.0.0.1:24224"
+       fluentd-async-connect: "true"
+       tag: devel.kris.db
 
   wordpress:
     depends_on:
