@@ -17,15 +17,13 @@ services:
       - db
     image: wordpress:latest
     restart: always
+    ports:
+      - 8080:80
     environment:
       WORDPRESS_DB_HOST: db:3306
       WORDPRESS_DB_USER: wordpress
       WORDPRESS_DB_PASSWORD: Password1
       WORDPRESS_DB_NAME: wordpress
-    labels:
-      - "traefik.http.routers.wordpress.rule=Host(`wordpress.172.28.128.30.xip.io`)"
-      - "traefik.docker.network=vagrant_traefik-net"
-      - "traefik.enable=true"
     logging:
       driver: "fluentd"
       options:
