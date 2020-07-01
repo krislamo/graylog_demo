@@ -3,7 +3,7 @@ version: '3.7'
 services:
 
   traefik:
-    image: traefik:2.1.4
+    image: traefik:2.2.1
     restart: always
     networks:
       - traefik-net
@@ -32,7 +32,7 @@ services:
        tag: traefik
 
   mongo:
-    image: mongo:4.2.2
+    image: mongo:4.2.8
     restart: always
     networks:
       - graylog
@@ -44,7 +44,7 @@ services:
        tag: graylog.db
 
   elasticsearch:
-    image: elasticsearch:6.8.6
+    image: elasticsearch:6.8.10
     restart: always
     environment:
       - http:host=0.0.0.0
@@ -65,7 +65,7 @@ services:
        tag: graylog.elasticsearch
 
   graylog:
-    image: graylog/graylog:3.2.2
+    image: graylog/graylog:3.3.2
     restart: always
     environment:
       - GRAYLOG_PASSWORD_SECRET=LongerPassword01
