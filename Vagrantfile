@@ -56,11 +56,25 @@ Vagrant.configure("2") do |config|
           systemctl restart rsyslog
         fi
 
+        # Setup TLS
+        if [ ! -f /vagrant/tmp/ca_key.pem ]; then
+          echo "Generating TLS certificates..."
+          cd /vagrant/tmp
+          openssl req -newkey rsa:4096 \
+                      -x509 \
+                      -sha256 \
+                      -days 3650 \
+                      -nodes \
+                      -out ca_cert.pem \
+                      -keyout ca_key.pem \
+                      -subj "/C=US/ST=Local/L=Local/O=Org/OU=IT/CN=example.com" \
+                      2> /dev/null
+        fi
+
         # Install td-agent
         cp /vagrant/td-agent.repo /etc/yum.repos.d/
         yum check-update
         yum install -y td-agent
-        td-agent-gem install fluent-plugin-secure-forward
         td-agent-gem install fluent-plugin-gelf-hs gelf
         systemctl -q enable td-agent
 
