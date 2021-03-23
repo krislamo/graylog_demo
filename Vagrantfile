@@ -88,6 +88,8 @@ Vagrant.configure("2") do |config|
         node.vm.provision "shell", inline: <<-SHELL
 
           cp /vagrant/td-agent-server.conf /etc/td-agent/td-agent.conf
+          mkdir -p /var/log/graylog_buffer
+          chown -R td-agent:td-agent /var/log/graylog_buffer
           systemctl restart td-agent
 
           # Install jq
@@ -159,8 +161,8 @@ Vagrant.configure("2") do |config|
 
           # Configure td-agent
           cp /vagrant/td-agent.conf /etc/td-agent/td-agent.conf
-          mkdir -p /var/log/containers
-          chown -R td-agent:td-agent /var/log/containers
+          mkdir -p /var/log/containers /var/log/fluentd_buffer
+          chown -R td-agent:td-agent /var/log/containers /var/log/fluentd_buffer
           chmod -R 755 /var/log
           systemctl restart td-agent
 
